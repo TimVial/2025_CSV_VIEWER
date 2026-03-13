@@ -1,0 +1,192 @@
+{
+    "plot2d": [
+        {
+            "title": "Pressure Ethanol",
+            "xaxis_title": "Time [s]",
+            "yaxis_title": "",
+            "autoscale": true,
+            "x_min": 0,
+            "x_max": 1,
+            "y_min": 0,
+            "y_max": 1,
+            "showlegend": true,
+            "Trace 1": {
+                "legend": "Tank Ethanol",
+                "line": "solid",
+                "x_col_in_csv": "timestamp",
+                "y_col_in_csv": "pressure_tank_ETH",
+                "title": "2D Plot",
+                "color": "#00cbff",
+                "width": 5
+            },
+            "Trace 2": {
+                "legend": "Line Ethanol",
+                "line": "solid",
+                "x_col_in_csv": "timestamp",
+                "y_col_in_csv": "pressure_line_ETH",
+                "title": "2D Plot",
+                "color": "#0077ff",
+                "width": 5
+            },
+            "Trace 3": {
+                "legend": "Injector Ethanol",
+                "line": "solid",
+                "x_col_in_csv": "timestamp",
+                "y_col_in_csv": "pressure_inj_ETH",
+                "title": "2D Plot",
+                "color": "#0d00ff",
+                "width": 5
+            },
+            "Trace 4": {
+                "legend": "Chamber",
+                "line": "solid",
+                "x_col_in_csv": "timestamp",
+                "y_col_in_csv": "chamber_pressure",
+                "title": "2D Plot",
+                "color": "#9900ff",
+                "width": 5
+            },
+            "Trace 5": {
+                "legend": "Main ETH (encoder)",
+                "line": "solid",
+                "x_col_in_csv": "timestamp",
+                "y_col_in_csv": " position_ETH_main_valve",
+                "title": "2D Plot",
+                "color": "#FF0000",
+                "width": 3
+            },
+            "Trace 6": {
+                "legend": "Main ETH (setpoint)",
+                "line": "solid",
+                "x_col_in_csv": "timestamp",
+                "y_col_in_csv": "main_ETH",
+                "title": "2D Plot",
+                "color": "#ff781f",
+                "width": 3
+            }
+        },
+        {
+            "title": "Pressure N2O",
+            "xaxis_title": "Time [s]",
+            "yaxis_title": "",
+            "autoscale": true,
+            "x_min": 0,
+            "x_max": 1,
+            "y_min": 0,
+            "y_max": 1,
+            "showlegend": true,
+            "Trace 1": {
+                "legend": "Tank N2O",
+                "line": "solid",
+                "x_col_in_csv": "timestamp",
+                "y_col_in_csv": "pressure_tank_N2O",
+                "title": "2D Plot",
+                "color": "#ffcf00",
+                "width": 4
+            },
+            "Trace 2": {
+                "legend": "Line N2O",
+                "line": "solid",
+                "x_col_in_csv": "timestamp",
+                "y_col_in_csv": "pressure_line_N2O",
+                "title": "2D Plot",
+                "color": "#cb6b2a",
+                "width": 4
+            },
+            "Trace 3": {
+                "legend": "Injector N2O",
+                "line": "solid",
+                "x_col_in_csv": "timestamp",
+                "y_col_in_csv": "pressure_inj_N2O",
+                "title": "2D Plot",
+                "color": "#ff683d",
+                "width": 4
+            },
+            "Trace 4": {
+                "legend": "Chamber",
+                "line": "solid",
+                "x_col_in_csv": "timestamp",
+                "y_col_in_csv": "chamber_pressure",
+                "title": "2D Plot",
+                "color": "#ac00ff",
+                "width": 4
+            }
+        },
+        {
+            "title": "Test Filters",
+            "xaxis_title": "Time [s]",
+            "yaxis_title": "",
+            "autoscale": true,
+            "x_min": 0,
+            "x_max": 1,
+            "y_min": 0,
+            "y_max": 1,
+            "showlegend": true,
+            "Trace 1": {
+                "legend": "",
+                "line": "solid",
+                "x_col_in_csv": "timestamp",
+                "y_col_in_csv": "pressure_line_ETH",
+                "title": "2D Plot",
+                "color": "#FF0000",
+                "width": 4
+            },
+            "Trace 2": {
+                "legend": "",
+                "line": "solid",
+                "x_col_in_csv": "timestamp",
+                "y_col_in_csv": "pressure_line_ETH [moving_average_centered(100)]",
+                "title": "2D Plot",
+                "color": "#00deff",
+                "width": 4
+            },
+            "Trace 3": {
+                "legend": "integral",
+                "line": "solid",
+                "x_col_in_csv": "timestamp",
+                "y_col_in_csv": "pressure_line_ETH [difference_real_time(10)]",
+                "title": "2D Plot",
+                "color": "#FF0000",
+                "width": 4
+            },
+            "Trace 4": {
+                "legend": "integral",
+                "line": "solid",
+                "x_col_in_csv": "timestamp",
+                "y_col_in_csv": "pressure_line_ETH [integral_real_time()]",
+                "title": "2D Plot",
+                "color": "#FF0000",
+                "width": 4
+            }
+        },
+        {
+            "title": "Mass flow ETH",
+            "xaxis_title": "Time [s]",
+            "yaxis_title": "",
+            "autoscale": true,
+            "x_min": 0,
+            "x_max": 1,
+            "y_min": 0,
+            "y_max": 1,
+            "showlegend": true,
+            "Trace 1": {
+                "legend": "Mass Flow ETH",
+                "line": "solid",
+                "x_col_in_csv": "timestamp",
+                "y_col_in_csv": "MassFlowETH",
+                "title": "2D Plot",
+                "color": "#FF0000",
+                "width": 3
+            },
+            "Trace 2": {
+                "legend": "Mass Flow ETH (filtered)",
+                "line": "solid",
+                "x_col_in_csv": "timestamp",
+                "y_col_in_csv": "MassFlowETH [moving_average_centered(100)]",
+                "title": "2D Plot",
+                "color": "#ff9600",
+                "width": 3
+            }
+        }
+    ]
+}

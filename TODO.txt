@@ -1,0 +1,2 @@
+- possibilité d'avoir plusieurs graduations différentes
+- souvegarde des formules

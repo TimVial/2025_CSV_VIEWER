@@ -1,5 +1,5 @@
 
-# lunch with: python -m streamlit run .\csv_viewer.py
+# launch with: python -m streamlit run .\csv_viewer.py
 
 from matplotlib.pyplot import plot
 import streamlit as st
@@ -9,6 +9,8 @@ import pandas as pd
 import plotly.graph_objects as go
 import json
 import os
+import re
+from scipy.signal import butter, lfilter, filtfilt
 import numpy as np
 from numpy import *
 from stl import mesh # package numpy-stl
@@ -19,7 +21,6 @@ if "csv_df" not in st.session_state:
 ######  Configuration  ######
 show_3d_hopper_path = False
 config_path = "config.json"
-
 
 
 
@@ -102,25 +103,106 @@ def convert_expression_into_values(expression, df):
         expression = expression.replace(var, f"df['{var}']")
     return eval(expression)
 
+def parse_filter_string(filter_str):
+    match = re.match(r"^([a-zA-Z0-9_]+)\((.*)\)$", filter_str.strip())
+    if not match:
+        raise ValueError(f"Invalid format: {filter_str} (use: filter_name(var1,...) )")
+    
+    name = match.group(1)
+    args_raw = match.group(2).strip()
+    
+    if not args_raw:
+        return name, []
+        
+    args = []
+    for arg in args_raw.split(","):
+        arg = arg.strip()
+        try:
+            if "." in arg:
+                args.append(float(arg))
+            else:
+                args.append(int(arg))
+        except ValueError:
+            args.append(arg)
+            
+    return name, args
+
+def convert_filter_command_and_variable(filter_cmd, var, df):
+    name, args = parse_filter_string(filter_cmd)
+
+    if name == "moving_average_real_time":
+        if len(args) != 1:
+            raise ValueError(f"moving_average_real_time requires exactly 1 argument (window_size), got {len(args)}")
+        window_size = int(args[0])
+        return df[var].rolling(window=window_size, min_periods=1, center=False).mean()
+        
+    elif name == "moving_average_centered":
+        if len(args) != 1:
+            raise ValueError(f"moving_average_centered requires exactly 1 argument, got {len(args)}")
+        window_size = int(args[0])
+        return df[var].rolling(window=window_size, min_periods=1, center=True).mean()
+        
+    elif name == "exponential_moving_average_real_time":
+        if len(args) != 1:
+            raise ValueError(f"exponential_moving_average_real_time requires exactly 1 argument (alpha), got {len(args)}")
+        alpha = float(args[0])
+        return df[var].ewm(alpha=alpha, adjust=False).mean()
+        
+    elif name == "difference_real_time":
+        if len(args) != 1:
+            raise ValueError(f"difference_real_time requires exactly 1 argument (periods), got {len(args)}")
+        periods = int(args[0])
+        return df[var].diff(periods=periods).fillna(0)
+        
+    elif name == "integral_real_time":
+        if len(args) != 0:
+            raise ValueError(f"integral_real_time requires 0 arguments, got {len(args)}")
+        return df[var].cumsum()
+        
+    elif name == "butterworth_real_time":
+        if len(args) != 3:
+            raise ValueError(f"butterworth_real_time requires 3 arguments (cutoff, fs, order), got {len(args)}")
+        cutoff, fs, order = float(args[0]), float(args[1]), int(args[2])
+        nyq = 0.5 * fs
+        normal_cutoff = cutoff / nyq
+        b, a = butter(order, normal_cutoff, btype='low', analog=False)
+        return lfilter(b, a, df[var].fillna(0))
+        
+    elif name == "butterworth_centered":
+        if len(args) != 3:
+            raise ValueError(f"butterworth_centered requires 3 arguments (cutoff, fs, order), got {len(args)}")
+        cutoff, fs, order = float(args[0]), float(args[1]), int(args[2])
+        nyq = 0.5 * fs
+        normal_cutoff = cutoff / nyq
+        b, a = butter(order, normal_cutoff, btype='low', analog=False)
+        return filtfilt(b, a, df[var].fillna(0))
+        
+    else:
+        raise ValueError(f"Unknown filter: {name}")
+
 def csv_variables_table():
     """Display the CSV variables in a table and alow creation of new variables via function of other variables."""
     if st.session_state.csv_df.empty:
         return
     if "variables_df" not in st.session_state:
-        st.session_state.variables_df = pd.DataFrame({"variables": ["example"], "expressions":[f"{st.session_state.csv_df.columns[1]} + {st.session_state.csv_df.columns[2]}"]})
+        #st.session_state.variables_df = pd.DataFrame({"variables": ["example"], "expressions":[f"{st.session_state.csv_df.columns[1]} + {st.session_state.csv_df.columns[2]}"]})
+        st.session_state.variables_df = pd.DataFrame({"variables": ["MassFlowETH"], "expressions":[f"0.4205/100.0*1.0*sqrt(pressure_tank_ETH-pressure_line_ETH)* position_ETH_main_valve "]})
     if "variables_df_edit" not in st.session_state:
         st.session_state.variables_df_edit = st.session_state.variables_df.copy()
     if "filtered_df" not in st.session_state:
-        st.session_state.filtered_df = pd.DataFrame({"variables": ["example"], "type":[f"mobile mean"]})
+        st.session_state.filtered_df = pd.DataFrame({"variables": [st.session_state.csv_df.columns[1]], "command":[f"moving_average_centered(100)"]})
     if "filtered_df_edit" not in st.session_state:
         st.session_state.filtered_df_edit = st.session_state.filtered_df.copy()
     
-    col_csv, col_var = st.columns([1, 1])
 
-    col_var.markdown("### Create new variables from existing CSV columns")
-    variables_df_edit = col_var.data_editor(st.session_state.variables_df,num_rows="dynamic", height= "stretch", key="variables_df_editor")
-    filtered_df_edit = col_var.data_editor(st.session_state.filtered_df,num_rows="dynamic", height= "stretch", key="filtered_df_editor")
-    variables_df_edit.fillna("", inplace=True)
+    st.markdown("### CSV Columns")
+    st.dataframe(st.session_state.csv_df.head(20), height= "auto")
+
+    col_left, col_right = st.columns([1, 1])
+    col_left.markdown("### New variables: Time independant operations")
+    col_left.markdown("$\quad$ all mathematical expression + , - , * , / , exp() , ln()")
+    variables_df_edit = col_left.data_editor(st.session_state.variables_df,num_rows="dynamic", height= "stretch", key="variables_df_editor")
+    #variables_df_edit.fillna("", inplace=True)
     st.session_state.variables_df = variables_df_edit
     for i in range(len(st.session_state.variables_df["variables"])):
         if st.session_state.variables_df["variables"][i] != "" and st.session_state.variables_df["expressions"][i] != "":
@@ -129,8 +211,22 @@ def csv_variables_table():
             except Exception as e:
                 st.warning(f"Error in expression for variable '{st.session_state.variables_df['variables'][i]}': {e}")
 
-    col_csv.markdown("### CSV Columns")
-    col_csv.dataframe(st.session_state.csv_df.head(20), height= "auto")
+    col_right.markdown("### New variables: Signal processing:")
+    col_right.markdown("$\quad$ • moving_average_real_time(window_size)")
+    col_right.markdown("$\quad$ • moving_average_centered(window_size)")
+    col_right.markdown("$\quad$ • exponential_moving_average_real_time(alpha)")
+    col_right.markdown("$\quad$ • difference_real_time()")
+    col_right.markdown("$\quad$ • integral_real_time()")
+    col_right.markdown("$\quad$ • butterworth_real_time(cutoff, fs, order)")
+    col_right.markdown("$\quad$ • butterworth_centered(cutoff, fs, order)")
+    filtered_df_edit = col_right.data_editor(st.session_state.filtered_df,num_rows="dynamic", height= "stretch", key="filtered_df_editor")
+    st.session_state.filtered_df = filtered_df_edit
+    for i in range(len(st.session_state.filtered_df["variables"])):
+        if st.session_state.filtered_df["variables"][i] != "" and st.session_state.filtered_df["command"][i] != "":
+            try:
+                st.session_state.csv_df[f"{st.session_state.filtered_df['variables'][i]} [{st.session_state.filtered_df['command'][i]}]"] = convert_filter_command_and_variable(st.session_state.filtered_df["command"][i], st.session_state.filtered_df["variables"][i], st.session_state.csv_df)
+            except Exception as e:
+                st.warning(f"Error in filter for variable '{st.session_state.filtered_df['variables'][i]}': {e}")
  
 def create_cylinder(center_x, center_y, center_z, radius=0.2, height=1.0, resolution=20):
     """Generate the coordinates for a 3D cylinder mesh."""
@@ -328,7 +424,7 @@ def anim_3d():
 
     _, col_plot3d, _ = st.columns([1, 1, 1])
     with col_plot3d:
-        st.plotly_chart(fig, use_container_width=True, key="anim3d", height=900)
+        st.plotly_chart(fig, width='stretch', key="anim3d", height=900)
 
 def plot_2d_window(container, n_plot):
     """Create the 2D plot with option and delete buttons."""
@@ -404,8 +500,24 @@ def plot_2d_window(container, n_plot):
                 st.rerun()
 
             col_names = st.session_state.csv_df.columns.tolist()
-            plot[trace]["x_col_in_csv"] = st.selectbox("X Axis", col_names, index=col_names.index(plot[trace]["x_col_in_csv"]))
-            plot[trace]["y_col_in_csv"] = st.selectbox("Y Axis", col_names, index=col_names.index(plot[trace]["y_col_in_csv"]))
+            if {plot[trace]["x_col_in_csv"]}.issubset(st.session_state.csv_df.columns):
+                plot[trace]["x_col_in_csv"] = st.selectbox("X Axis", col_names, index=col_names.index(plot[trace]["x_col_in_csv"]))
+            else: # colums in config out of date
+                st.warning(f"X Axis selection: columns '{plot[trace]['x_col_in_csv']}' not found in CSV.")
+                if st.button(f"Reset column with {col_names[0]}"):
+                    plot[trace]["x_col_in_csv"] = st.selectbox("X Axis", col_names, index=0)
+                    save_config()
+                    st.rerun()
+
+            if {plot[trace]["y_col_in_csv"]}.issubset(st.session_state.csv_df.columns):
+                plot[trace]["y_col_in_csv"] = st.selectbox("Y Axis", col_names, index=col_names.index(plot[trace]["y_col_in_csv"]))
+            else: # colums in config out of date
+                st.warning(f"Y Axis selection: columns '{plot[trace]['y_col_in_csv']}' not found in CSV.")
+                if st.button(f"Reset column with {col_names[0]}"):
+                    plot[trace]["y_col_in_csv"] = st.selectbox("Y Axis", col_names, index=0)
+                    save_config()
+                    st.rerun()
+            
             plot[trace]["color"] = st.color_picker("Color", plot[trace]["color"])
             plot[trace]["legend"] = st.text_input("Legend", plot[trace]["legend"])
             plot[trace]["line"] = st.selectbox("Line", ["solid", "dot", "dash"], index=["solid", "dot", "dash"].index(plot[trace]["line"]))
@@ -439,7 +551,7 @@ def plot_2d_window(container, n_plot):
         margin=dict(l=0, r=0, b=0, t=0),
     )
     container.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
-    container.plotly_chart(fig, use_container_width=True, key=f"plot2d_{n_plot}")
+    container.plotly_chart(fig, width='stretch', key=f"plot2d_{n_plot}")
 
 def all_plot_2d():
     """Create the 2D plot section."""
@@ -523,11 +635,11 @@ def main():
 
     # application content
     top_button_bar()
-    space(200)
+    debug_show_session_state()
+    space(100)
     if not st.session_state.csv_df.empty:
-        title("2D Plots")
+        title("CSV")
         csv_variables_table()
-        debug_show_session_state()
         space(200)
         if show_3d_hopper_path:
             title("3D Animation")
